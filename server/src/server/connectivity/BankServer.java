@@ -1,27 +1,13 @@
 package server.connectivity;
 
-import java.io.EOFException;
-import java.io.IOException;
-import java.io.ObjectInputStream;
-import java.io.ObjectOutputStream;
-import java.io.Serializable;
-import java.net.ServerSocket;
-import java.net.Socket;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Map;
-import java.util.Set;
-import java.util.UUID;
-
 import bank.InactiveException;
 import bank.OverdrawException;
-import bank.commands.CloseAccountCmd;
-import bank.commands.DepositCmd;
-import bank.commands.GetAccountCmd;
-import bank.commands.GetAccountNumbersCmd;
-import bank.commands.NewAccountCmd;
-import bank.commands.TransferCmd;
-import bank.commands.WithdrawCmd;
+import bank.commands.*;
+
+import java.io.*;
+import java.net.ServerSocket;
+import java.net.Socket;
+import java.util.*;
 
 /**
  * This class acts as the main bank server.
@@ -56,158 +42,41 @@ public class BankServer {
 	 */
 	private void handleRequest() {
 		try {
-			Socket s = socket.accept();
+			Socket socket = this.socket.accept();
 
-			LOG("");
-			LOG("New request received from : " + s.getInetAddress().toString());
+			log("\nNew request received from: " + socket.getInetAddress().toString());
 
-			ObjectInputStream in = new ObjectInputStream(s.getInputStream());
-			ObjectOutputStream out = new ObjectOutputStream(s.getOutputStream());
+			ObjectInputStream in = new ObjectInputStream(socket.getInputStream());
+			ObjectOutputStream out = new ObjectOutputStream(socket.getOutputStream());
 
-			Object obj = in.readObject();
+			Object command = in.readObject();
 
-			if (obj instanceof NewAccountCmd) {
+			if (command instanceof NewAccountCmd) {
+				command = handleNewAccountCommand((NewAccountCmd) command);
 
-				NewAccountCmd cmd = (NewAccountCmd) obj;
+			} else if (command instanceof GetAccountCmd) {
+				command = handleGetAccountCommand((GetAccountCmd) command);
 
-				// create local account and set number on command
-				cmd.setAccountNumber(bank.createAccount(cmd.getOwner()));
+			} else if (command instanceof GetAccountNumbersCmd) {
+				command = handleGetAccountNumbersCommand((GetAccountNumbersCmd) command);
 
-				LOG("Created new account for : " + cmd.getOwner() + " - accountNr: " + cmd.getAccountNumber());
+			} else if (command instanceof DepositCmd) {
+				command = handleDepositCommand((DepositCmd) command);
 
-				// write back to client
-				out.writeObject(cmd);
+			} else if (command instanceof WithdrawCmd) {
+				command = handleWithdrawCommand((WithdrawCmd) command);
 
-			} else if (obj instanceof GetAccountCmd) {
+			} else if (command instanceof CloseAccountCmd) {
+				command = handleCloseAccountCommand((CloseAccountCmd) command);
 
-				GetAccountCmd cmd = (GetAccountCmd) obj;
-
-				// get account from repository
-				Account account = bank.getAccount(cmd.getNumber());
-
-				// set relevant data on command
-				if (account != null) {
-					cmd.setBalance(account.getBalance());
-					cmd.setActive(account.isActive());
-					cmd.setOwner(account.getOwner());
-					cmd.setAccountFound(true);
-					
-					LOG("Send account details of accounrNr: " + cmd.getNumber());
-					
-				} else {
-					ERR("Requested accountNr could not be found!");
-				}
-
-				// write back to client
-				out.writeObject(cmd);
-
-			} else if (obj instanceof GetAccountNumbersCmd) {
-
-				GetAccountNumbersCmd cmd = (GetAccountNumbersCmd) obj;
-
-				// set current account numbers
-				cmd.setAccounts(bank.getAccountNumbers());
-
-				LOG("Send current account list to client.");
-
-				// write back to client
-				out.writeObject(cmd);
-
-			} else if (obj instanceof DepositCmd) {
-
-				DepositCmd cmd = (DepositCmd) obj;
-
-				Account account = bank.getAccount(cmd.getAccountNr());
-
-				LOG("Deposit of " + cmd.getAmount() + " requested on accountNr: " + cmd.getAccountNr());
-
-				try {
-					account.deposit(cmd.getAmount());
-					cmd.setNewBalance(account.getBalance());
-					LOG("Deposit passed, new balance " + account.getBalance());
-				} catch (InactiveException e) {
-					ERR("Deposit failed with InactiveException!");
-					cmd.setError(true);
-				}
-
-				// write back to client
-				out.writeObject(cmd);
-
-			} else if (obj instanceof WithdrawCmd) {
-
-				WithdrawCmd cmd = (WithdrawCmd) obj;
-
-				Account account = bank.getAccount(cmd.getAccountNr());
-
-				LOG("Withdraw of " + cmd.getAmount() + " requested on accountNr: " + cmd.getAccountNr());
-
-				try {
-					account.withdraw(cmd.getAmount());
-					cmd.setNewBalance(account.getBalance());
-					LOG("Withdraw passed, new balance " + account.getBalance());
-				} catch (InactiveException e) {
-					cmd.setError(true);
-					cmd.setErrMsg("InactiveException");
-					ERR("Withdraw failed with InactiveException!");
-				} catch (OverdrawException e) {
-					cmd.setError(true);
-					cmd.setErrMsg("OverdrawException");
-					ERR("Withdraw failed with OverdrawException!");
-				}
-
-				// write back to client
-				out.writeObject(cmd);
-
-			} else if (obj instanceof CloseAccountCmd) {
-
-				CloseAccountCmd cmd = (CloseAccountCmd) obj;
-
-				LOG("Close account requested for " + cmd.getAccountNr());
-
-				boolean closed = bank.closeAccount(cmd.getAccountNr());
-
-				if (closed)
-					LOG("Account " + cmd.getAccountNr() + " has been closed!");
-				else
-					ERR("Account " + cmd.getAccountNr() + " could not be closed!");
-
-				cmd.setResult(closed);
-
-				// write back to client
-				out.writeObject(cmd);
-
-			} else if (obj instanceof TransferCmd) {
-
-				TransferCmd cmd = (TransferCmd) obj;
-
-				Account from = bank.getAccount(cmd.getFromAccountNr());
-				Account to = bank.getAccount(cmd.getToAccountNr());
-
-				LOG("Transfer of " + cmd.getAmount() + " requested [from: " + from.getNumber() + ", to: "
-						+ to.getNumber() + "]");
-
-				try {
-					bank.transfer(from, to, cmd.getAmount());
-					LOG("Transfer passed, new balances [from: " + from.getBalance() + ", to: " + to.getBalance() + "]");
-				} catch (InactiveException e) {
-					cmd.setError(true);
-					cmd.setErrMsg("InactiveException");
-					ERR("Transfer failed with InactiveException");
-				} catch (OverdrawException e) {
-					cmd.setError(true);
-					cmd.setErrMsg("OverdrawException");
-					ERR("Transfer failed with OverdrawException");
-				} catch (IllegalArgumentException e) {
-					cmd.setError(true);
-					cmd.setErrMsg("IllegalArgumentException");
-					ERR("Transfer failed with IllegalArgumentException");
-				}
-
-				// write back to client
-				out.writeObject(cmd);
+			} else if (command instanceof TransferCmd) {
+				command = handleTransferCommand((TransferCmd) command);
 			}
 
-			s.close();
+			// write back to client
+			out.writeObject(command);
+
+			socket.close();
 
 		} catch (EOFException e) {
 			// happends on test connection
@@ -215,6 +84,125 @@ public class BankServer {
 		} catch (IOException | ClassNotFoundException e) {
 			e.printStackTrace();
 		}
+	}
+
+	private Object handleNewAccountCommand(NewAccountCmd cmd) throws IOException {
+		// create local account and set number on command
+		cmd.setAccountNumber(bank.createAccount(cmd.getOwner()));
+
+		log("Created new account for : " + cmd.getOwner() + " - accountNr: " + cmd.getAccountNumber());
+
+		return cmd;
+	}
+
+	private Object handleGetAccountCommand(GetAccountCmd cmd) throws IOException {
+		// get account from repository
+		Account account = bank.getAccount(cmd.getNumber());
+
+		// set relevant data on command
+		if (account != null) {
+			cmd.setBalance(account.getBalance());
+			cmd.setActive(account.isActive());
+			cmd.setOwner(account.getOwner());
+			cmd.setAccountFound(true);
+
+			log("Send account details of accounrNr: " + cmd.getNumber());
+
+		} else {
+			err("Requested accountNr could not be found!");
+		}
+
+		return cmd;
+	}
+
+	private Object handleGetAccountNumbersCommand(GetAccountNumbersCmd cmd) throws IOException {
+		// set current account numbers
+		cmd.setAccounts(bank.getAccountNumbers());
+
+		log("Send current account list to client.");
+
+		return cmd;
+	}
+
+	private Object handleDepositCommand(DepositCmd cmd) throws IOException {
+		Account account = bank.getAccount(cmd.getAccountNr());
+
+		log("Deposit of " + cmd.getAmount() + " requested on accountNr: " + cmd.getAccountNr());
+
+		try {
+			account.deposit(cmd.getAmount());
+			cmd.setNewBalance(account.getBalance());
+			log("Deposit passed, new balance " + account.getBalance());
+		} catch (InactiveException e) {
+			err("Deposit failed with InactiveException!");
+			cmd.setError(true);
+		}
+
+		return cmd;
+	}
+
+	private Object handleWithdrawCommand(WithdrawCmd cmd) throws IOException {
+		Account account = bank.getAccount(cmd.getAccountNr());
+
+		log("Withdraw of " + cmd.getAmount() + " requested on accountNr: " + cmd.getAccountNr());
+
+		try {
+			account.withdraw(cmd.getAmount());
+			cmd.setNewBalance(account.getBalance());
+			log("Withdraw passed, new balance " + account.getBalance());
+		} catch (InactiveException e) {
+			cmd.setError(true);
+			cmd.setErrMsg("InactiveException");
+			err("Withdraw failed with InactiveException!");
+		} catch (OverdrawException e) {
+			cmd.setError(true);
+			cmd.setErrMsg("OverdrawException");
+			err("Withdraw failed with OverdrawException!");
+		}
+
+		return cmd;
+	}
+
+	private Object handleCloseAccountCommand(CloseAccountCmd cmd) throws IOException {
+		log("Close account requested for " + cmd.getAccountNr());
+
+		boolean closed = bank.closeAccount(cmd.getAccountNr());
+
+		if (closed)
+			log("Account " + cmd.getAccountNr() + " has been closed!");
+		else
+			err("Account " + cmd.getAccountNr() + " could not be closed!");
+
+		cmd.setResult(closed);
+
+		return cmd;
+	}
+
+	private Object handleTransferCommand(TransferCmd cmd) throws IOException {
+		Account from = bank.getAccount(cmd.getFromAccountNr());
+		Account to = bank.getAccount(cmd.getToAccountNr());
+
+		log("Transfer of " + cmd.getAmount() + " requested [from: " + from.getNumber() + ", to: "
+                + to.getNumber() + "]");
+
+		try {
+            bank.transfer(from, to, cmd.getAmount());
+            log("Transfer passed, new balances [from: " + from.getBalance() + ", to: " + to.getBalance() + "]");
+        } catch (InactiveException e) {
+            cmd.setError(true);
+            cmd.setErrMsg("InactiveException");
+            err("Transfer failed with InactiveException");
+        } catch (OverdrawException e) {
+            cmd.setError(true);
+            cmd.setErrMsg("OverdrawException");
+            err("Transfer failed with OverdrawException");
+        } catch (IllegalArgumentException e) {
+            cmd.setError(true);
+            cmd.setErrMsg("IllegalArgumentException");
+            err("Transfer failed with IllegalArgumentException");
+        }
+
+        return cmd;
 	}
 
 	public Bank getBank() {
@@ -225,11 +213,11 @@ public class BankServer {
 		this.bank = bank;
 	}
 
-	private final void LOG(String s) {
+	private void log(String s) {
 		System.out.println(s);
 	}
 
-	private final void ERR(String s) {
+	private void err(String s) {
 		System.err.println(s);
 	}
 
