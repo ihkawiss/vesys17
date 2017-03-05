@@ -79,7 +79,7 @@ public class BankServer {
 			socket.close();
 
 		} catch (EOFException e) {
-			// happends on test connection
+			// happens on test connection
 			// TODO [kki]: fix it / handle the right way
 		} catch (IOException | ClassNotFoundException e) {
 			e.printStackTrace();
@@ -106,7 +106,7 @@ public class BankServer {
 			cmd.setOwner(account.getOwner());
 			cmd.setAccountFound(true);
 
-			log("Send account details of accounrNr: " + cmd.getNumber());
+			log("Send account details of accountNr: " + cmd.getNumber());
 
 		} else {
 			err("Requested accountNr could not be found!");
@@ -270,7 +270,7 @@ public class BankServer {
 				throws IOException, InactiveException, OverdrawException, IllegalArgumentException {
 
 			if (amount < 0)
-				throw new IllegalArgumentException("Can't transfer negativ values!");
+				throw new IllegalArgumentException("Can't transfer negative values!");
 
 			from.withdraw(amount);
 			to.deposit(amount);
