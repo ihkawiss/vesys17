@@ -46,19 +46,34 @@ public class BankServer {
 
             log("\nNew request received from: " + socket.getInetAddress().toString());
 
-            BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
+            BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream(), "UTF-8"));
             BufferedWriter out = new BufferedWriter(new OutputStreamWriter(socket.getOutputStream(), "UTF-8"));
+            String contentLengthHeaderName = "Content-Length:";
 
             String line;
-            String lastLine = null;
+            String content = "";
+            int contentLength = 0;
+            boolean isContentLine = false;
             while ((line = in.readLine()) != null) {
+                if (line.startsWith(contentLengthHeaderName)) {
+                    contentLength = Integer.valueOf(line.split(contentLengthHeaderName)[1].trim());
+
+                } else if (line.length() == 0) {
+                    isContentLine = true;
+
+                } else if (isContentLine) {
+                    content += line;
+                    if (content.length() >= contentLength) {
+                        // leave while loop if full content has been read
+                        break;
+                    }
+                }
                 System.out.println(line);
-                lastLine = line;
             }
 
-            if (lastLine != null) {
+            if (!content.isEmpty()) {
                 // last line is content
-                Object command = deserialize(lastLine);
+                Object command = deserialize(content);
                 Serializable responseCommand = null;
 
                 if (command instanceof NewAccountCmd) {
@@ -86,7 +101,6 @@ public class BankServer {
                 sendResponse(responseCommand, out);
             }
 
-
             socket.close();
 
         } catch (IOException | ClassCastException | ClassNotFoundException e) {
@@ -112,20 +126,19 @@ public class BankServer {
 
     private void sendResponse(Serializable command, BufferedWriter out) throws IOException {
         String statusLine = command != null ? "HTTP/1.1 200 OK\r\n" : "HTTP/1.1 400 Bad Request\r\n";
-
         String responseString = serialize(command);
-
         String contentLengthLine = "Content-Length: " + responseString.length() + "\r\n";
 
 
         out.write(statusLine);
-        out.write ("Server: vesys Java BankServer v1.0\r\n");
+        out.write("Server: vesys Java BankServer v1.0\r\n");
         out.write("application/octet-stream\r\n");
         out.write(contentLengthLine);
         out.write("Connection: close\r\n");
         out.write("\r\n");
-        out.write(responseString);
+        out.write(responseString + "\n");
         out.flush();
+        out.close();
     }
 
     private Serializable handleNewAccountCommand(NewAccountCmd cmd) throws IOException {
