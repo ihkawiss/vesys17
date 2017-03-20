@@ -2,9 +2,11 @@ package bank.http;
 
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
+import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.io.OutputStreamWriter;
 import java.io.Serializable;
@@ -186,14 +188,24 @@ public class Driver implements bank.BankDriver {
 			wr.write("\r\n");
 			wr.write(serialize(cmd));
 			wr.flush();
+			wr.close();
 
 			// get answer
 			try {
 				String line;
+				String result = "";
 				while ((line = in.readLine()) != null) {
-					System.out.println(line);
+					result += line;
 				}
 
+				// log
+				System.out.println("Server response received");
+				System.out.println(result);
+				
+				return deserialize(line); // last line = object
+
+			} catch (ClassNotFoundException e) {
+				e.printStackTrace();
 			} finally {
 				bankServer.close();
 			}
@@ -330,6 +342,14 @@ public class Driver implements bank.BankDriver {
 		oos.writeObject(o);
 		oos.close();
 		return Base64.getEncoder().encodeToString(baos.toByteArray());
+	}
+
+	private static Object deserialize(String s) throws IOException, ClassNotFoundException {
+		byte[] data = Base64.getDecoder().decode(s);
+		ObjectInputStream ois = new ObjectInputStream(new ByteArrayInputStream(data));
+		Object o = ois.readObject();
+		ois.close();
+		return o;
 	}
 
 }
