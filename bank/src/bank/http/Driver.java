@@ -193,16 +193,18 @@ public class Driver implements bank.BankDriver {
 			// get answer
 			try {
 				String line;
-				String result = "";
+				String lastLine = null;
 				while ((line = in.readLine()) != null) {
-					result += line;
+					if(lastLine == null)
+						System.out.println("Server response received");
+					
+					lastLine = line;
+					System.out.println(line);
 				}
 
-				// log
-				System.out.println("Server response received");
-				System.out.println(result);
 				
-				return deserialize(line); // last line = object
+				
+				return deserialize(lastLine); // last line = object
 
 			} catch (ClassNotFoundException e) {
 				e.printStackTrace();
