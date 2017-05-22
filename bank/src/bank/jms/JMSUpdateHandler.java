@@ -24,7 +24,7 @@ public class JMSUpdateHandler implements MessageListener {
     public JMSUpdateHandler() throws NamingException {
     	Hashtable<String, String> properties = new Hashtable<>();
 		properties.put(Context.INITIAL_CONTEXT_FACTORY, "org.jnp.interfaces.NamingContextFactory");
-		properties.put(Context.PROVIDER_URL, "localhost:1099");
+		properties.put(Context.PROVIDER_URL, "jnp://localhost:1099");
 		properties.put("queue.BANK", "bank.BANK");
 		properties.put("topic.BANK.LISTENER", "bank.BANK.LISTENER");
     	

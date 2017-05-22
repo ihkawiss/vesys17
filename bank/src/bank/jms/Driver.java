@@ -39,7 +39,7 @@ import bank.commands.WithdrawCmd;
  * @author Kevin Kirn <kevin.kirn@students.fhnw.ch>
  * @author Hoang Tran <hoang.tran@students.fhnw.ch>
  */
-public class Driver implements bank.BankDriver2 {
+public class Driver implements bank.BankDriver2{
 
 	private Bank bank = null;
 	private JMSUpdateHandler handler;
@@ -52,6 +52,8 @@ public class Driver implements bank.BankDriver2 {
 		try {
 			handler = new JMSUpdateHandler();
 			handler.start();
+			
+			System.out.println("JMS BankDriver started!");
 		} catch (NamingException e) {
 			e.printStackTrace();
 		}
@@ -80,7 +82,9 @@ public class Driver implements bank.BankDriver2 {
 			try {
 				Hashtable<String, String> properties = new Hashtable<>();
 				properties.put(Context.INITIAL_CONTEXT_FACTORY, "org.jnp.interfaces.NamingContextFactory");
-				properties.put(Context.PROVIDER_URL, "localhost:1099");
+				properties.put(Context.PROVIDER_URL, "jnp://localhost:1099");
+				properties.put("queue.BANK", "bank.BANK");
+				properties.put("topic.BANK.LISTENER", "bank.BANK.LISTENER");
 				
 				context = new InitialContext(properties);
 				conFactory = (ConnectionFactory) context.lookup("ConnectionFactory");
@@ -193,7 +197,7 @@ public class Driver implements bank.BankDriver2 {
 				JMSConsumer receiver = context.createConsumer(tempQueue);
 
 				sender.send(queue, serialize(cmd));
-				return receiver.receiveBody(Object.class);
+				return deserialize(receiver.receiveBody(String.class));
 			} catch (Exception e) {
 				return null;
 			}
