@@ -1,13 +1,27 @@
 package server.connectivity;
 
-import bank.InactiveException;
-import bank.OverdrawException;
-import bank.commands.*;
-
-import java.io.*;
+import java.io.DataInputStream;
+import java.io.DataOutputStream;
+import java.io.EOFException;
+import java.io.IOException;
+import java.io.Serializable;
 import java.net.ServerSocket;
 import java.net.Socket;
-import java.util.*;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Map;
+import java.util.Set;
+import java.util.UUID;
+
+import bank.InactiveException;
+import bank.OverdrawException;
+import bank.commands.CloseAccountCmd;
+import bank.commands.DepositCmd;
+import bank.commands.GetAccountCmd;
+import bank.commands.GetAccountNumbersCmd;
+import bank.commands.NewAccountCmd;
+import bank.commands.TransferCmd;
+import bank.commands.WithdrawCmd;
 
 /**
  * This class acts as the main bank server.
@@ -46,10 +60,19 @@ public class BankServer {
 
 			log("\nNew request received from: " + socket.getInetAddress().toString());
 
-			ObjectInputStream in = new ObjectInputStream(socket.getInputStream());
-			ObjectOutputStream out = new ObjectOutputStream(socket.getOutputStream());
+//			ObjectInputStream in = new ObjectInputStream(socket.getInputStream());
+//			ObjectOutputStream out = new ObjectOutputStream(socket.getOutputStream());
 
-			Object command = in.readObject();
+			DataInputStream in = new DataInputStream(socket.getInputStream());
+			DataOutputStream out = new DataOutputStream(socket.getOutputStream());
+			
+			String line = null;
+			String lastLine = null;
+			while((line = in.readUTF()) != null){
+				lastLine = line;
+			}
+			
+			Object command = null;//in.readObject();
 
 			if (command instanceof NewAccountCmd) {
 				command = handleNewAccountCommand((NewAccountCmd) command);
@@ -74,14 +97,14 @@ public class BankServer {
 			}
 
 			// write back to client
-			out.writeObject(command);
+			//out.writeObject(command);
 
 			socket.close();
 
 		} catch (EOFException e) {
 			// happens on test connection
 			// TODO [kki]: fix it / handle the right way
-		} catch (IOException | ClassNotFoundException e) {
+		} catch (IOException e) {
 			e.printStackTrace();
 		}
 	}

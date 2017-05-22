@@ -1,10 +1,16 @@
 package bank.sockets;
 
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.DataInputStream;
+import java.io.DataOutputStream;
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
+import java.io.Serializable;
 import java.net.InetAddress;
 import java.net.Socket;
+import java.util.Base64;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
@@ -165,18 +171,18 @@ public class Driver implements bank.BankDriver {
 			return null;
 		}
 
-		public Object sendCommand(Object cmd) throws IOException {
+		public Object sendCommand(Serializable cmd) throws IOException {
 			Socket bankServer = new Socket(HOST, PORT);
 
-			ObjectOutputStream out = new ObjectOutputStream(bankServer.getOutputStream());
-			ObjectInputStream in = new ObjectInputStream(bankServer.getInputStream());
+			DataInputStream in = new DataInputStream(bankServer.getInputStream());
+			DataOutputStream out = new DataOutputStream(bankServer.getOutputStream());
 
 			// send command to server
-			out.writeObject(cmd);
+			out.writeUTF(serialize(cmd));
 
 			// get answer
 			try {
-				return in.readObject();
+				return deserialize(in.readUTF());
 			} catch (ClassNotFoundException e) {
 				e.printStackTrace();
 			} finally {
@@ -307,6 +313,22 @@ public class Driver implements bank.BankDriver {
 
 		}
 
+	}
+	
+	private static String serialize(Serializable o) throws IOException {
+		ByteArrayOutputStream baos = new ByteArrayOutputStream();
+		ObjectOutputStream oos = new ObjectOutputStream(baos);
+		oos.writeObject(o);
+		oos.close();
+		return Base64.getEncoder().encodeToString(baos.toByteArray());
+	}
+
+	private static Object deserialize(String s) throws IOException, ClassNotFoundException {
+		byte[] data = Base64.getDecoder().decode(s);
+		ObjectInputStream ois = new ObjectInputStream(new ByteArrayInputStream(data));
+		Object o = ois.readObject();
+		ois.close();
+		return o;
 	}
 
 }

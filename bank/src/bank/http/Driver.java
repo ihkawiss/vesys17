@@ -1,14 +1,13 @@
 package bank.http;
 
 import java.io.BufferedReader;
-import java.io.BufferedWriter;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
+import java.io.DataOutputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
-import java.io.OutputStreamWriter;
 import java.io.Serializable;
 import java.net.InetAddress;
 import java.net.Socket;
@@ -174,36 +173,41 @@ public class Driver implements bank.BankDriver {
 
 		public Object sendCommand(Serializable cmd) throws IOException {
 			Socket bankServer = new Socket(HOST, PORT);
-
-			BufferedWriter wr = new BufferedWriter(new OutputStreamWriter(bankServer.getOutputStream(), "UTF-8"));
+		
+			DataOutputStream dOut = new DataOutputStream(bankServer.getOutputStream());
+			
 			BufferedReader in = new BufferedReader(new InputStreamReader(bankServer.getInputStream(), "UTF-8"));
 
 			// write headers
-			wr.write("POST / HTTP/1.0\r\n");
-			wr.write("Accept: */*\r\n");
-			wr.write("User-Agent: JavaBankClient\r\n");
-			wr.write("Host: " + HOST + "\r\n");
-			wr.write("Connection: close\r\n");
-			wr.write("Content-Type: application/octet-stream\r\n");
-			wr.write("\r\n");
-			wr.write(serialize(cmd));
-			wr.flush();
-			wr.close();
+			String message = ""
+					+ "POST /" + cmd.getClass().getSimpleName() + " HTTP/1.0\r\n"
+					+ "Accept: */*\r\n"
+					+ "User-Agent: JavaBankClient\r\n"
+					+ "Host: " + HOST + "\r\n"
+					+ "Connection: close\r\n"
+					+ "Content-Type: application/octet-stream\r\n"
+					+ "\r\n"
+					+ serialize(cmd) + "\r\n";			
+			
+			System.out.println("send to server:");
+			System.out.println(message);
+			
+			dOut.writeUTF(message);
+			dOut.flush();
+			dOut.close();
 
 			// get answer
 			try {
 				String line;
 				String lastLine = null;
 				while ((line = in.readLine()) != null) {
-					if(lastLine == null)
+					if (lastLine == null)
 						System.out.println("Server response received");
-					
+
 					lastLine = line;
 					System.out.println(line);
 				}
 
-				
-				
 				return deserialize(lastLine); // last line = object
 
 			} catch (ClassNotFoundException e) {
