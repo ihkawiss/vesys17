@@ -14,4 +14,11 @@ Der Bank-Server verwaltet defacto eine lokale Bank, welche mit Aufgabe a) implem
 Aktuell wird für jede Operation jeweils ein neuer Socket vom Client geöffnet und nach Abarbeitung durch den Server geschlossen. Es gibt hier sicherlich noch Verbesserungspotential wo sich eigentlich nachfolgende Request bündeln liessen um den Overhead und damit die Performance zu verbessern. Ebenso werden vom Client teilweise alle Accounts direkt vom Server abgefragt, um zu verhindern, dass die lokalen Daten veraltet sind. Dies könnte dahingehend optimiert werden, dass nur jene synchronisiert werden bei welchen sich Zustände verändert haben.
 
 ## Übung2: HTTP Bank
-Beschreibung der Lösung.
+
+### Client -Tier
+Die Driver-Klasse (bank.http.Driver) basiert auf der Übung 1 und setzt somit auch serialisierte Kommando-Klassen zur Kommunikation ein. Im Gegesatz zur Übung 1 werden die Anfragen jedoch mittels HTTP übermittelt. Die Kommando-Instanzen werden serialisiert mittels POST-Request im Body an den Server übermittelt. In der vom Server gesendeten Response ist jeweils wieder das Kommando enthalten, dieses wird deserialisiert und analog Übung 1 weiter verarbeitet.
+
+### Server-Tier
+Wie schon der Client, basiert auch die HTTP Implementation des Servers auf der Übung 1. Der Server verarbeitet HTTP Anfragen der Clients, wertet die serialisierten Kommando-Objekte aus und führt entsprechende Anweisungen auf der Bank aus. Als Resultat sendet der Server den HTTP Status und die Kommando-Obekte zurück an die Clients.
+
+
