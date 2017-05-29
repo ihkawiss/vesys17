@@ -2,16 +2,5 @@
 <classpath>
 	<classpathentry kind="src" path="src"/>
 	<classpathentry kind="con" path="org.eclipse.jdt.launching.JRE_CONTAINER"/>
-	<classpathentry kind="lib" path="lib/hornetq-commons-2.4.7.Final.jar"/>
-	<classpathentry kind="lib" path="lib/hornetq-core-client-2.4.7.Final.jar"/>
-	<classpathentry kind="lib" path="lib/hornetq-jms-client-2.4.7.Final.jar"/>
-	<classpathentry kind="lib" path="lib/hornetq-journal-2.4.7.Final.jar"/>
-	<classpathentry kind="lib" path="lib/hornetq-native-2.4.7.Final.jar"/>
-	<classpathentry kind="lib" path="lib/javax.inject-1.jar"/>
-	<classpathentry kind="lib" path="lib/jboss-jms-api_2.0_spec-1.0.0.Final.jar"/>
-	<classpathentry kind="lib" path="lib/jboss-logging-3.1.0.GA.jar"/>
-	<classpathentry kind="lib" path="lib/jgroups-3.3.4.Final.jar"/>
-	<classpathentry kind="lib" path="lib/jnp-client-4.2.2.GA.jar"/>
-	<classpathentry kind="lib" path="lib/netty-all-4.0.13.Final.jar"/>
 	<classpathentry kind="output" path="bin"/>
 </classpath>

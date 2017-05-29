@@ -1,0 +1,7 @@
+bank.local.Driver
+-
+bank.sockets.Driver localhost 1337
+bank.http.Driver localhost 1337
+bank.jms.Driver
+bank.jms.Driver
+ch.fhwn.vesys.websockets.client.BankDriver

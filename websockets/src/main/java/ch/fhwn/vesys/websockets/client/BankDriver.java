@@ -1,4 +1,4 @@
-package bank.jms;
+package ch.fhwn.vesys.websockets.client;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -6,23 +6,23 @@ import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.io.Serializable;
+import java.net.InetAddress;
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.util.Base64;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.Hashtable;
 import java.util.Map;
 import java.util.Set;
 
-import javax.jms.ConnectionFactory;
-import javax.jms.JMSConsumer;
-import javax.jms.JMSContext;
-import javax.jms.JMSProducer;
-import javax.jms.Queue;
-import javax.jms.TemporaryQueue;
-import javax.naming.Context;
-import javax.naming.InitialContext;
-import javax.naming.NamingException;
+import javax.websocket.ClientEndpointConfig;
+import javax.websocket.CloseReason;
+import javax.websocket.DeploymentException;
+import javax.websocket.Session;
 
+import org.glassfish.tyrus.client.ClientManager;
+
+import bank.BankDriver2;
 import bank.InactiveException;
 import bank.OverdrawException;
 import bank.commands.CloseAccountCmd;
@@ -33,36 +33,34 @@ import bank.commands.NewAccountCmd;
 import bank.commands.TransferCmd;
 import bank.commands.WithdrawCmd;
 
-/**
- * HTTP bank driver implementation.
- * 
- * @author Kevin Kirn <kevin.kirn@students.fhnw.ch>
- * @author Hoang Tran <hoang.tran@students.fhnw.ch>
- */
-public class Driver implements bank.BankDriver2{
+public class BankDriver implements BankDriver2 {
 
+	static Session session = null;
 	private Bank bank = null;
-	private JMSUpdateHandler handler;
-	
+
 	@Override
 	public void connect(String[] args) throws IOException {
 
-		bank = new Bank();
+		ClientManager client = ClientManager.createClient();
+
+		final ClientEndpointConfig cec = ClientEndpointConfig.Builder.create().build();
 
 		try {
-			handler = new JMSUpdateHandler();
-			handler.start();
-			
-			System.out.println("JMS BankDriver started!");
-		} catch (NamingException e) {
+			session = client.connectToServer(ClientWebSocketEndpoint.class, cec,
+					new URI("ws://localhost:8888/bank/api"));
+
+			// I can't get a active connection and can't find the issue
+			// Caused by: java.net.ConnectException: Connection refused: no further information
+
+		} catch (DeploymentException | URISyntaxException e) {
 			e.printStackTrace();
 		}
-
 	}
 
 	@Override
 	public void disconnect() throws IOException {
-		bank = null;
+		if (session != null && session.isOpen())
+			session.close(new CloseReason(CloseReason.CloseCodes.GOING_AWAY, "Bye"));
 	}
 
 	@Override
@@ -70,28 +68,16 @@ public class Driver implements bank.BankDriver2{
 		return bank;
 	}
 
-	static class Bank implements bank.Bank {
+	@Override
+	public void registerUpdateHandler(UpdateHandler handler) throws IOException {
 
+	}
+
+	static class Bank implements bank.Bank {
+		
 		private final Map<String, Account> accounts = new HashMap<>();
 
-		private ConnectionFactory conFactory;
-		private Context context;
-		private Queue queue;
-		
-		public Bank() {
-			try {
-				Hashtable<String, String> properties = new Hashtable<>();
-				properties.put(Context.INITIAL_CONTEXT_FACTORY, "org.jnp.interfaces.NamingContextFactory");
-				properties.put(Context.PROVIDER_URL, "jnp://localhost:1099");
-				properties.put("queue.BANK", "bank.BANK");
-				properties.put("topic.BANK.LISTENER", "bank.BANK.LISTENER");
-				
-				context = new InitialContext(properties);
-				conFactory = (ConnectionFactory) context.lookup("ConnectionFactory");
-				queue = (Queue) context.lookup("/queue/BANK");
-			} catch (NamingException e) {
-				e.printStackTrace();
-			}
+		public Bank(InetAddress host, int port) {
 		}
 
 		@Override
@@ -190,18 +176,9 @@ public class Driver implements bank.BankDriver2{
 
 		public Object sendCommand(Serializable cmd) throws IOException {
 
-			try (JMSContext context = conFactory.createContext()) {
-				TemporaryQueue tempQueue = context.createTemporaryQueue();
+			session.getBasicRemote().sendText(serialize(cmd));
 
-				JMSProducer sender = context.createProducer().setJMSReplyTo(tempQueue);
-				JMSConsumer receiver = context.createConsumer(tempQueue);
-
-				sender.send(queue, serialize(cmd));
-				return deserialize(receiver.receiveBody(String.class));
-			} catch (Exception e) {
-				return null;
-			}
-
+			return null; // TODO: get appropriate answer
 		}
 
 		@Override
@@ -335,18 +312,12 @@ public class Driver implements bank.BankDriver2{
 		return Base64.getEncoder().encodeToString(baos.toByteArray());
 	}
 
-	@SuppressWarnings("unused")
 	private static Object deserialize(String s) throws IOException, ClassNotFoundException {
 		byte[] data = Base64.getDecoder().decode(s);
 		ObjectInputStream ois = new ObjectInputStream(new ByteArrayInputStream(data));
 		Object o = ois.readObject();
 		ois.close();
 		return o;
-	}
-
-	@Override
-	public void registerUpdateHandler(UpdateHandler handler) throws IOException {
-		this.handler.registerUpdateHandler(handler);
 	}
 
 }
