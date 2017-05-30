@@ -11,7 +11,7 @@ public class BankServer {
 	public static void main(String[] args) throws DeploymentException, IOException {
 		
 		// initialize server
-		Server server = new Server("localhost", 8888, "/handler", null, BankServerEndpoint.class);
+		Server server = new Server("localhost", 8888, "/server", null, BankServerEndpoint.class);
 
 		// start server
 		server.start();
