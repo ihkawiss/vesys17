@@ -30,7 +30,7 @@ import bank.commands.NewAccountCmd;
 import bank.commands.TransferCmd;
 import bank.commands.WithdrawCmd;
 
-@ServerEndpoint("/handler")
+@ServerEndpoint("/bank")
 public class BankServerEndpoint {
 
 	private Bank bank;
