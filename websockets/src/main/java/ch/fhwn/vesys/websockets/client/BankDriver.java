@@ -47,7 +47,7 @@ public class BankDriver implements BankDriver2 {
 
 		try {
 			session = client.connectToServer(ClientWebSocketEndpoint.class, cec,
-					new URI("ws://localhost:8888/bank/api"));
+					new URI("ws://localhost:8888/server/bank"));
 
 			// I can't get a active connection and can't find the issue
 			// Caused by: java.net.ConnectException: Connection refused: no further information
